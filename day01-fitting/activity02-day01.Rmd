@@ -1,8 +1,232 @@
 ---
-title: "Activity 2 - Day 1"
+title: "Activity 2"
 output: github_document
 ---
 
-```{setup, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
 ```
+# Day 1
+
+## Task 3: Load the data and
+
+```{r}
+hfi <- read_csv("https://www.openintro.org/data/csv/hfi.csv");
+glimpse(hfi)
+head(hfi)
+```
+### Dataset
+
+There are 123 columns/variables and 1458 observations.
+
+Each row in the dataset gives the freedom score, rank, quantile and other scores for a single country for a year.
+
+### Filtering for only 2016
+
+```{r}
+hfi_2016 <- hfi %>% filter(year == 2016)
+head(hfi_2016)
+```
+### Plot
+
+```{r}
+hfi_2016 %>% ggplot(aes(pf_expression_control, pf_score)) +
+  geom_point() +
+  labs(
+    title = "Personal Freedom (score) vs Political pressures and controls \non media content for year 2016",
+    x = "Political pressures and controls on media content",
+    y = "Personal Freedom (score)"
+  )+
+  theme_bw()
+```
+
+The relationship looks linear with a positive slope. A linear model seems to be a good choice here.
+
+
+## Task 4: Sum of squared residuals
+
+The manual process gave me a minimum sum of squares of 106.83 for line pf_score = 4.1750 + 0.5302 * pf_expression_control.
+
+## Task 5: The linear model
+
+```{r}
+m1 <- lm(pf_score ~ pf_expression_control, data = hfi_2016)
+tidy(m1)
+```
+
+Here the y-intercept is: 4.2838153 and the slope is: 0.5418452.
+
+# Day 2
+
+## Task 2: Overall model fit
+
+### Correlation
+
+```{r}
+cor(hfi_2016$pf_score, hfi_2016$pf_expression_control)
+```
+This means that pf_score and pf_expression_control have high positive correlation. That means if pf_expression_control increases pf_score also increases and we can use pf_expression_control to predict pf_score.
+
+### R^2^ of the model
+
+```{r}
+glance(m1)
+```
+
+The R^2^ of the model is 0.7141342.
+
+This means that 71.41% of the variability in pf_score is explained away by this model.
+
+### Predicting Human freedom score based on Political pressures and controls on media content
+
+```{r}
+m2 <- lm(hf_score ~ pf_expression_control, data = hfi_2016)
+tidy(m2)
+```
+
+When no Political Pressure and Control is exerted on the media content, the mean Human freedom score estimate is 5.053396. 
+
+For unit increase in Political pressure and control the increase in mean Human freedom score is estimated to be 0.368432.
+
+Political pressure and control on the media content and the Human freedom score have a positive relationship.
+
+## Task 3: Prediction and prediction errors
+
+### Plot
+
+```{r}
+hfi_2016 %>% ggplot(aes(pf_expression_control, pf_score)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Personal Freedom (score) vs Political pressures and controls \non media content for year 2016",
+    x = "Political pressures and controls on media content",
+    y = "Personal Freedom (score)"
+  )+
+  theme_bw()
+```
+
+From just the plot, to get Personal Freedom score for 3 rating for pf_expression_control, we can follow the vertical line at 3 on the x-axis until we get to the lm line. It gives approximately 6.3 for pf_score.
+
+This is actually an overestimate becuase most of the points in the data is below the line.
+
+## Task 4: Model diagnostics
+
+### Residual Plot
+
+```{r}
+m1_aug <- augment(m1)
+
+ggplot(data = m1_aug, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+```
+
+The residuals have a random spread from left to right with most points within 1 to -1. The residuals are also closer to 0. This means that pf_expression_control is a good predictor of pf_score.
+
+
+### Residuals Histogram
+
+```{r}
+ggplot(data = m1_aug, aes(x = .resid)) +
+  geom_histogram(binwidth = 0.25) +
+  xlab("Residuals")
+```
+
+The histogram of the residuals is unimodal and skewed left. This raises questions about the normality of the data.
+
+Looking at the residual vs fitted plot it appears that the constant variability assumption is met since there are no apparent pattern visible.
+
+## Challenge: More practice
+
+I choose _pf_expression_ which is a score of Freedom of expression to predict _pf_score_. I chose _pf_expression_ because freedom of expression is important for personal freedom.
+
+### Plot
+```{r}
+hfi_2016 %>% ggplot(aes(pf_expression, pf_score)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Personal Freedom (score) vs Freedom of expression for year 2016",
+    x = "Freedom of expression",
+    y = "Personal Freedom (score)"
+  )+
+  theme_bw()
+```
+
+At a glance the relationship seems linear though fitting a quadratic model may give better R^2^.
+
+### Model
+
+```{r}
+m3 <- lm(pf_score~pf_expression, hfi_2016)
+summary(m3)
+```
+
+The model with pf_expression is significant so there is a linear relationship between pf_expression and pf_score.
+
+### R^2^ comparision
+
+The model with pf_expression_control and pf_score has a R^2^ of 0.7141342 which is arguably same as that of this model (0.7139). So this model is not better at predicting pf_score than the previous one.
+
+### Checking Regression assumptions
+
+```{r}
+m3_aug <- augment(m3)
+
+# Residuals vs Fitted plot
+
+ggplot(data = m3_aug, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+# Histogram of Residuals
+ggplot(data = m3_aug, aes(x = .resid)) +
+  geom_histogram(binwidth = 0.25) +
+  xlab("Residuals")
+```
+
+We can argue that there's a pattern to the residual vs fitted plot. But the pattern is not apparent and the points do cluster near to 0 along y-axis.
+
+The histogram is skewed left. So both the normality assumption and the constant variance assumption are under question and requires further investigation.
+
+```{r}
+shapiro.test(hfi_2016$pf_expression)
+shapiro.test(hfi_2016$pf_score)
+```
+
+Shapiro-Wilk normality test shows that the pf_expression data is not normal. The same is true for pf_score also.
+
+### Another Set of Variables
+
+I'm choosing to predict Economic freedom score (`ef_score`) based on the Business regulations - Extra payments/bribes/favoritism (`ef_regulation_business_bribes`). This is an interesting case because I wonder if greasing your way to better business deal means more economic freedom.
+
+### Plot and Model fit
+
+```{r}
+# Plot
+hfi_2016 %>% ggplot(aes(ef_regulation_business_bribes, ef_score)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Personal Freedom (score) vs Business regulations - \nExtra payments/bribes/favoritism for year 2016",
+    x = "Business regulations",
+    y = "Personal Freedom (score)"
+  )+
+  theme_bw()
+
+# Model
+m4 <- lm(ef_score~ef_regulation_business_bribes, hfi_2016)
+summary(m4)
+```
+Though the relationship is linear and the model is significant, the R^2^ is low (0.395). This means Economic freedom depends on many other things and just having a huge freedom to Extra payments/bribes/favoritism doesn't actually give greater economic freedom.
+
+Though it is surprising that there's a positive relationship between the two. I expected it to be a negative. Maybe greater value of ef_regulation_business_bribes means that people are forced to make illegal deals less therefore have greater freedom from extra payments, bribes, favoritism etc.
+
+
